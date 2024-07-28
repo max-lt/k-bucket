@@ -18,3 +18,8 @@ pub trait GetDirection {
 pub trait GetKey<Key> {
     fn get_key(&self) -> Key;
 }
+
+/// [ITEM] Arbitrates between two items during an insertion
+pub trait Arbiter {
+    fn arbitrate(&self, candidate: &Self) -> bool;
+}

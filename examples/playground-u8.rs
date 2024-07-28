@@ -1,4 +1,5 @@
 use hex_conservative::DisplayHex;
+use k_bucket::Arbiter;
 use k_bucket::Bucket;
 use k_bucket::Direction;
 use k_bucket::GetDirection;
@@ -37,13 +38,21 @@ struct Item {
 
 impl std::fmt::Debug for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:08b} ({:03})", self.value, self.value)
+        write!(f, "{:016b} ({:03})", self.value, self.value)
     }
 }
 
 impl GetKey<Key> for Item {
     fn get_key(&self) -> Key {
-        Key((self.value | 256) as u8)
+        // Key((self.value | 256) as u8)
+        Key((self.value >> 8) as u8)
+    }
+}
+
+impl Arbiter for Item {
+    fn arbitrate(&self, candidate: &Self) -> bool {
+        // self.value < candidate.value
+        self.value > candidate.value
     }
 }
 
@@ -69,7 +78,7 @@ fn main() {
     let mut bucket: Bucket<Key, Item, 1> = Bucket::new(key);
     println!("- {:?}", bucket);
 
-    for i in 0..255 {
+    for i in 0..0xffff {
         bucket.put(Item { value: i });
     }
 

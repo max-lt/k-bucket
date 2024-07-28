@@ -1,7 +1,8 @@
 use log::debug;
 
-use crate::GetKey;
+use crate::traits::Arbiter;
 use crate::GetDirection;
+use crate::GetKey;
 use crate::Node;
 
 /// K: max items in a bucket
@@ -13,7 +14,9 @@ pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
 /// Key: key struct
 /// Item: value struct
 /// K: max items in a bucket
-impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key>> Bucket<Key, Item, K> {
+impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key> + Arbiter>
+    Bucket<Key, Item, K>
+{
     pub fn new(key: Key) -> Self {
         Bucket {
             key,
@@ -25,7 +28,7 @@ impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key>> B
         let bucket_key = self.key.clone();
 
         let item_key = value.get_key();
-    
+
         let (node, bit_index) = Node::get_node_mut(&mut self.root, &item_key);
 
         // Check if item already exists
@@ -39,7 +42,18 @@ impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key>> B
 
         // Update item
         if let Some(item_index) = item_index {
-            items[item_index] = value;
+            // items[item_index] = value;
+            let incumbent = &items[item_index];
+            let should_update = incumbent.arbitrate(&value);
+
+            // If the selected item is the same as the incumbent, do nothing
+            if !should_update {
+                return;
+            }
+
+            // If the selected item is the new item, update
+            items.remove(item_index);
+            items.push(value);
 
             return;
         }
@@ -50,10 +64,11 @@ impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key>> B
             return;
         }
 
-        // We cannot split the node, remove the oldest item and insert the new one
+        // The bucket is full
         if !node.can_split {
-            // items.remove(0);
-            // items.push(value);
+            // TODO: emit event with the m items list and the
+            // new item to let the user decide what to do,
+            // for now we just ignore the new item and return
             return;
         }
 

@@ -1,3 +1,4 @@
+use k_bucket::Arbiter;
 use k_bucket::Bucket;
 use k_bucket::Direction;
 use k_bucket::GetDirection;
@@ -19,6 +20,12 @@ impl std::fmt::Debug for Item {
 impl GetKey<Key> for Item {
     fn get_key(&self) -> Key {
         Key([self.value as u8, (self.value >> 8) as u8])
+    }
+}
+
+impl Arbiter for Item {
+    fn arbitrate(&self, candidate: &Self) -> bool {
+      self.value > candidate.value
     }
 }
 

@@ -1,3 +1,4 @@
+use k_bucket::Arbiter;
 use k_bucket::Bucket;
 use k_bucket::GetKey;
 
@@ -8,6 +9,12 @@ struct Item {
 impl GetKey<[u8; 2]> for Item {
     fn get_key(&self) -> [u8; 2] {
         [self.value as u8, (self.value >> 8) as u8]
+    }
+}
+
+impl Arbiter for Item {
+    fn arbitrate(&self, candidate: &Self) -> bool {
+      self.value > candidate.value
     }
 }
 
