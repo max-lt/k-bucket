@@ -26,6 +26,7 @@ impl<Key: GetDirection, Item: GetKey<Key>> Node<Key, Item> {
     /// Split the node into two nodes
     pub fn split(&mut self, bit_index: usize, split: Direction) {
         let mut items = self.items.take().unwrap();
+        items.reverse();
 
         let mut left_items = Vec::new();
         let mut right_items = Vec::new();

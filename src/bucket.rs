@@ -2,6 +2,7 @@ use log::debug;
 
 use crate::traits::Arbiter;
 use crate::GetDirection;
+use crate::GetDistance;
 use crate::GetKey;
 use crate::Node;
 
@@ -14,8 +15,10 @@ pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
 /// Key: key struct
 /// Item: value struct
 /// K: max items in a bucket
-impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key> + Arbiter>
-    Bucket<Key, Item, K>
+impl<const K: usize, Key, Item> Bucket<Key, Item, K>
+where
+    Key: PartialEq + GetDirection + Clone + GetDistance + Ord,
+    Item: GetKey<Key> + Arbiter,
 {
     pub fn new(key: Key) -> Self {
         Bucket {
@@ -89,23 +92,47 @@ impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key> + 
         items.iter().find(|item| item.get_key() == *key)
     }
 
-    pub fn del(&mut self, key: &Key) {
+    pub fn del(&mut self, key: &Key) -> Option<Item> {
         let (node, _) = Node::get_node_mut(&mut self.root, key);
 
         // Check if item exists
-        let items = node.items.as_ref().unwrap();
+        let items = node.items.as_mut().unwrap();
+        let item_index = items.iter().position(|item| item.get_key() == *key)?;
 
-        let item_index = items.iter().position(|item| item.get_key() == *key);
-
-        if let Some(item_index) = item_index {
-            let items = node.items.as_mut().unwrap();
-            items.remove(item_index);
-        }
+        Some(items.remove(item_index))
     }
 
-    // Count the number of items in the bucket
+    /// Count the number of items in the bucket
     pub fn count(&self) -> usize {
         self.root.count()
+    }
+
+    /// Get the n closest items to the given key
+    pub fn closest(&self, key: &Key, n: usize) -> Vec<&Item> {
+        let mut result = Vec::new();
+
+        let mut nodes = vec![&self.root];
+
+        while !nodes.is_empty() {
+            let node = nodes.pop().unwrap();
+
+            match &node.items {
+                Some(items) => result.extend(items.iter()),
+                None => {
+                    nodes.push(&node.left.as_ref().unwrap());
+                    nodes.push(&node.right.as_ref().unwrap());
+                }
+            }
+        }
+
+        let mut result = result
+            .iter()
+            .map(|item| (key.distance(&item.get_key()), *item))
+            .collect::<Vec<(Key, &Item)>>();
+
+        result.sort_by(|(a, _), (b, _)| a.cmp(&b));
+
+        result.into_iter().take(n).map(|(_, item)| item).collect()
     }
 }
 

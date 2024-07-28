@@ -6,7 +6,7 @@ use k_bucket::GetDirection;
 use k_bucket::GetDistance;
 use k_bucket::GetKey;
 
-#[derive(PartialEq, Clone, Copy)]
+#[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 struct Key(u8);
 
 impl std::fmt::Debug for Key {
@@ -44,8 +44,8 @@ impl std::fmt::Debug for Item {
 
 impl GetKey<Key> for Item {
     fn get_key(&self) -> Key {
-        // Key((self.value | 256) as u8)
-        Key((self.value >> 8) as u8)
+        Key((self.value | 256) as u8)
+        // Key((self.value >> 8) as u8)
     }
 }
 
@@ -77,10 +77,10 @@ fn main() {
     println!("{:?}", sup);
 
     let key = Key(0);
-    let mut bucket: Bucket<Key, Item, 2> = Bucket::new(key);
+    let mut bucket: Bucket<Key, Item, 3> = Bucket::new(key);
     println!("- {:?}", bucket);
 
-    for i in 0..0xffff {
+    for i in 0..0xff {
         bucket.put(Item { value: i });
     }
 
@@ -92,8 +92,11 @@ fn main() {
     let value = Item { value: 8 };
     println!("Get {:?} {:?}", value, bucket.get(&value.get_key()));
 
-    println!("Del {:?}", bucket.del(&Key(0)));
+    // println!("Del {:?}", bucket.del(&Key(0)));
 
     println!("{:?}", bucket);
     println!("has {} items", bucket.count());
+
+    let closest_to = Key(0);
+    println!("Closest to {:?}: {:?}", closest_to, bucket.closest(&closest_to, 10));
 }
