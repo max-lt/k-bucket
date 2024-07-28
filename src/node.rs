@@ -90,6 +90,18 @@ impl<Key: GetDirection, Item: GetKey<Key>> Node<Key, Item> {
 
         (node, bit_index)
     }
+
+    pub fn count(&self) -> usize {
+        match &self.items {
+            Some(items) => items.len(),
+            None => {
+                let left = self.left.as_ref().map(|node| node.count()).unwrap_or(0);
+                let right = self.right.as_ref().map(|node| node.count()).unwrap_or(0);
+
+                left + right
+            }
+        }
+    }
 }
 
 impl<Key, Item: GetKey<Key>> Default for Node<Key, Item> {

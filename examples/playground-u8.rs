@@ -51,8 +51,10 @@ impl GetKey<Key> for Item {
 
 impl Arbiter for Item {
     fn arbitrate(&self, candidate: &Self) -> bool {
-        // self.value < candidate.value
-        self.value > candidate.value
+        self.value < candidate.value // update if value is less
+        // self.value > candidate.value // update if value is greater
+        // true // always update
+        // false // never update
     }
 }
 
@@ -74,8 +76,8 @@ fn main() {
 
     println!("{:?}", sup);
 
-    let key = Key(77);
-    let mut bucket: Bucket<Key, Item, 1> = Bucket::new(key);
+    let key = Key(0);
+    let mut bucket: Bucket<Key, Item, 2> = Bucket::new(key);
     println!("- {:?}", bucket);
 
     for i in 0..0xffff {
@@ -90,7 +92,8 @@ fn main() {
     let value = Item { value: 8 };
     println!("Get {:?} {:?}", value, bucket.get(&value.get_key()));
 
-    println!("Del {:?}", bucket.del(&Key(8)));
+    println!("Del {:?}", bucket.del(&Key(0)));
 
     println!("{:?}", bucket);
+    println!("has {} items", bucket.count());
 }

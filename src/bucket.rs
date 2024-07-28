@@ -102,6 +102,11 @@ impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key> + 
             items.remove(item_index);
         }
     }
+
+    // Count the number of items in the bucket
+    pub fn count(&self) -> usize {
+        self.root.count()
+    }
 }
 
 #[cfg(test)]
