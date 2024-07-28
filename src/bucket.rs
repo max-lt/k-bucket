@@ -13,7 +13,7 @@ pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
 /// Key: key struct
 /// Item: value struct
 /// K: max items in a bucket
-impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, Item, K> {
+impl<const K: usize, Key: PartialEq + HasBitAt + Clone, Item: GetKey<Key>> Bucket<Key, Item, K> {
     pub fn new(key: Key) -> Self {
         Bucket {
             key,
@@ -22,24 +22,15 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
     }
 
     pub fn put(&mut self, value: Item) {
-        let mut bit_index = 0;
-        let mut node = self.root.as_mut();
+        let bucket_key = self.key.clone();
 
-        let key = value.get_key();
-
-        // Navigate to the first bucket node
-        while node.items.is_none() {
-            node = match key.has_bit_at(bit_index) {
-                false => node.left.as_mut().unwrap(),
-                true => node.right.as_mut().unwrap(),
-            };
-
-            bit_index += 1;
-        }
+        let item_key = value.get_key();
+    
+        let (node, bit_index) = Node::get_node_mut(&mut self.root, &item_key);
 
         // Check if item already exists
         let item_index = match &node.items {
-            Some(items) => items.iter().position(|item| item.get_key() == key),
+            Some(items) => items.iter().position(|item| item.get_key() == item_key),
             // This should never happen as we navigated to the bucket node earlier
             None => unreachable!("Node has no items"),
         };
@@ -68,25 +59,14 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
 
         // Split node and distribute items
         debug!("Splitting bucket {}", bit_index);
-        node.split(bit_index, self.key.has_bit_at(bit_index));
+        node.split(bit_index, bucket_key.has_bit_at(bit_index));
 
         // Insert value by recursion
         self.put(value);
     }
 
     pub fn get<'a>(&'a self, key: &Key) -> Option<&'a Item> {
-        let mut bit_index = 0;
-        let mut node = self.root.as_ref();
-
-        // Navigate to the first bucket node
-        while node.items.is_none() {
-            node = match key.has_bit_at(bit_index) {
-                false => node.left.as_ref().unwrap(),
-                true => node.right.as_ref().unwrap(),
-            };
-
-            bit_index += 1;
-        }
+        let (node, _) = Node::get_node(&self.root, key);
 
         // Check if item exists
         let items = node.items.as_ref().unwrap();
@@ -95,18 +75,7 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
     }
 
     pub fn del(&mut self, key: &Key) {
-        let mut bit_index = 0;
-        let mut node = self.root.as_mut();
-
-        // Navigate to the first bucket node
-        while node.items.is_none() {
-            node = match key.has_bit_at(bit_index) {
-                false => node.left.as_mut().unwrap(),
-                true => node.right.as_mut().unwrap(),
-            };
-
-            bit_index += 1;
-        }
+        let (node, _) = Node::get_node_mut(&mut self.root, key);
 
         // Check if item exists
         let items = node.items.as_ref().unwrap();

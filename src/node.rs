@@ -49,6 +49,40 @@ impl<Key: HasBitAt, Item: GetKey<Key>> Node<Key, Item> {
         self.items = None;
         self.can_split = false;
     }
+
+    pub fn get_node<'a>(node: &'a Box<Node<Key, Item>>, key: &Key) ->  (&'a Node<Key, Item>, usize) {
+        let mut bit_index = 0;
+        let mut node = node.as_ref();
+
+        // Navigate to the first bucket node
+        while node.items.is_none() {
+            node = match key.has_bit_at(bit_index) {
+                false => node.left.as_ref().unwrap(),
+                true => node.right.as_ref().unwrap(),
+            };
+
+            bit_index += 1;
+        }
+
+        (node, bit_index)
+    }
+
+    pub fn get_node_mut<'a>(node: &'a mut Box<Node<Key, Item>>, key: &Key) ->  (&'a mut Node<Key, Item>, usize) {
+        let mut bit_index = 0;
+        let mut node = node.as_mut();
+
+        // Navigate to the first bucket node
+        while node.items.is_none() {
+            node = match key.has_bit_at(bit_index) {
+                false => node.left.as_mut().unwrap(),
+                true => node.right.as_mut().unwrap(),
+            };
+
+            bit_index += 1;
+        }
+
+        (node, bit_index)
+    }
 }
 
 impl<Key, Item: GetKey<Key>> Default for Node<Key, Item> {
