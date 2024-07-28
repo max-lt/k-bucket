@@ -1,6 +1,7 @@
 use k_bucket::Bucket;
+use k_bucket::Direction;
+use k_bucket::GetDirection;
 use k_bucket::GetKey;
-use k_bucket::HasBitAt;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct Key([u8; 2]);
@@ -21,8 +22,8 @@ impl GetKey<Key> for Item {
     }
 }
 
-impl HasBitAt for Key {
-    fn has_bit_at(&self, i: usize) -> bool {
+impl GetDirection for Key {
+    fn direction(&self, i: usize) -> Direction {
         let byte = i >> 3;
         let bit = i % 8;
 
@@ -31,7 +32,10 @@ impl HasBitAt for Key {
             panic!("Index out of bounds");
         }
 
-        self.0[byte] & (1 << (7 - bit)) != 0
+        match self.0[byte] & (1 << (7 - bit)) {
+            0 => Direction::Left,
+            _ => Direction::Right,
+        }
     }
 }
 

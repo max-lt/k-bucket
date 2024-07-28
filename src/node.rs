@@ -1,7 +1,8 @@
 use std::marker::PhantomData;
 
+use crate::Direction;
+use crate::GetDirection;
 use crate::GetKey;
-use crate::HasBitAt;
 
 /// Node is either a bucket (it has items) or a fork
 #[derive(Debug)]
@@ -14,7 +15,7 @@ pub(crate) struct Node<Key, Item: GetKey<Key>> {
     _marker: PhantomData<Key>,
 }
 
-impl<Key: HasBitAt, Item: GetKey<Key>> Node<Key, Item> {
+impl<Key: GetDirection, Item: GetKey<Key>> Node<Key, Item> {
     pub fn new_root() -> Self {
         Node {
             can_split: true,
@@ -22,27 +23,28 @@ impl<Key: HasBitAt, Item: GetKey<Key>> Node<Key, Item> {
         }
     }
 
-    pub fn split(&mut self, bit_index: usize, next_split_right: bool) {
+    /// Split the node into two nodes
+    pub fn split(&mut self, bit_index: usize, split: Direction) {
         let mut items = self.items.take().unwrap();
 
         let mut left_items = Vec::new();
         let mut right_items = Vec::new();
         while let Some(item) = items.pop() {
-            match item.get_key().has_bit_at(bit_index) {
-                false => left_items.push(item),
-                true => right_items.push(item),
+            match item.get_key().direction(bit_index) {
+                Direction::Left => left_items.push(item),
+                Direction::Right => right_items.push(item),
             }
         }
 
         self.left = Some(Box::new(Node {
             items: Some(left_items),
-            can_split: !next_split_right,
+            can_split: split == Direction::Left,
             ..Default::default()
         }));
 
         self.right = Some(Box::new(Node {
             items: Some(right_items),
-            can_split: next_split_right,
+            can_split: split == Direction::Right,
             ..Default::default()
         }));
 
@@ -50,15 +52,16 @@ impl<Key: HasBitAt, Item: GetKey<Key>> Node<Key, Item> {
         self.can_split = false;
     }
 
-    pub fn get_node<'a>(node: &'a Box<Node<Key, Item>>, key: &Key) ->  (&'a Node<Key, Item>, usize) {
+    /// Get the node that contains the item with the given key
+    pub fn get_node<'a>(node: &'a Box<Node<Key, Item>>, key: &Key) -> (&'a Node<Key, Item>, usize) {
         let mut bit_index = 0;
         let mut node = node.as_ref();
 
         // Navigate to the first bucket node
         while node.items.is_none() {
-            node = match key.has_bit_at(bit_index) {
-                false => node.left.as_ref().unwrap(),
-                true => node.right.as_ref().unwrap(),
+            node = match key.direction(bit_index) {
+                Direction::Left => node.left.as_ref().unwrap(),
+                Direction::Right => node.right.as_ref().unwrap(),
             };
 
             bit_index += 1;
@@ -67,15 +70,19 @@ impl<Key: HasBitAt, Item: GetKey<Key>> Node<Key, Item> {
         (node, bit_index)
     }
 
-    pub fn get_node_mut<'a>(node: &'a mut Box<Node<Key, Item>>, key: &Key) ->  (&'a mut Node<Key, Item>, usize) {
+    /// Get the node that contains the item with the given key (mutable)
+    pub fn get_node_mut<'a>(
+        node: &'a mut Box<Node<Key, Item>>,
+        key: &Key,
+    ) -> (&'a mut Node<Key, Item>, usize) {
         let mut bit_index = 0;
         let mut node = node.as_mut();
 
         // Navigate to the first bucket node
         while node.items.is_none() {
-            node = match key.has_bit_at(bit_index) {
-                false => node.left.as_mut().unwrap(),
-                true => node.right.as_mut().unwrap(),
+            node = match key.direction(bit_index) {
+                Direction::Left => node.left.as_mut().unwrap(),
+                Direction::Right => node.right.as_mut().unwrap(),
             };
 
             bit_index += 1;

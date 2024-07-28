@@ -1,7 +1,8 @@
 use hex_conservative::DisplayHex;
 use k_bucket::Bucket;
-use k_bucket::Distance;
-use k_bucket::HasBitAt;
+use k_bucket::Direction;
+use k_bucket::GetDirection;
+use k_bucket::GetDistance;
 use k_bucket::GetKey;
 
 #[derive(PartialEq, Clone, Copy)]
@@ -13,17 +14,20 @@ impl std::fmt::Debug for Key {
     }
 }
 
-impl Distance for Key {
+impl GetDistance for Key {
     fn distance(&self, right: &Key) -> Key {
         Key(self.0 ^ right.0)
     }
 }
 
-impl HasBitAt for Key {
-    fn has_bit_at(&self, i: usize) -> bool {
+impl GetDirection for Key {
+    fn direction(&self, i: usize) -> Direction {
         let bit = i % 8;
 
-        self.0 & (1 << (7 - bit)) != 0
+        match self.0 & (1 << (7 - bit)) {
+            0 => Direction::Left,
+            _ => Direction::Right,
+        }
     }
 }
 
@@ -80,5 +84,4 @@ fn main() {
     println!("Del {:?}", bucket.del(&Key(8)));
 
     println!("{:?}", bucket);
-
 }

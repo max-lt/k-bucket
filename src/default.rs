@@ -1,9 +1,10 @@
-use crate::Distance;
-use crate::HasBitAt;
+use crate::Direction;
+use crate::GetDirection;
+use crate::GetDistance;
 
 pub type Buf<const N: usize> = [u8; N];
 
-impl<const N: usize> Distance for Buf<N> {
+impl<const N: usize> GetDistance for Buf<N> {
     /// XOR distance between two keys of size N
     fn distance(&self, right: &Buf<N>) -> [u8; N] {
         let mut result = [0; N];
@@ -17,8 +18,8 @@ impl<const N: usize> Distance for Buf<N> {
 }
 
 /// N key size in bits
-impl<const N: usize> HasBitAt for Buf<N> {
-    fn has_bit_at(&self, i: usize) -> bool {
+impl<const N: usize> GetDirection for Buf<N> {
+    fn direction(&self, i: usize) -> Direction {
         let byte = i >> 3;
         let bit = i % 8;
 
@@ -28,14 +29,17 @@ impl<const N: usize> HasBitAt for Buf<N> {
             panic!("Index out of bounds");
         }
 
-        self[byte] & (1 << (7 - bit)) != 0
+        match self[byte] & (1 << (7 - bit)) {
+            0 => Direction::Left,
+            _ => Direction::Right,
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::Distance;
+    use crate::GetDistance;
 
     #[test]
     fn test_distance() {
@@ -48,9 +52,9 @@ mod tests {
     }
 
     #[test]
-    fn test_has_bit_at() {
+    fn test_direction() {
         let key = [1, 0, 0, 0, 0, 0, 0, 1];
-        assert_eq!(key.has_bit_at(7), true);
-        assert_eq!(key.has_bit_at(1), false);
+        assert_eq!(key.direction(7), Direction::Right);
+        assert_eq!(key.direction(1), Direction::Left);
     }
 }

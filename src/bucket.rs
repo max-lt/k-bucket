@@ -1,7 +1,7 @@
 use log::debug;
 
 use crate::GetKey;
-use crate::HasBitAt;
+use crate::GetDirection;
 use crate::Node;
 
 /// K: max items in a bucket
@@ -13,7 +13,7 @@ pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
 /// Key: key struct
 /// Item: value struct
 /// K: max items in a bucket
-impl<const K: usize, Key: PartialEq + HasBitAt + Clone, Item: GetKey<Key>> Bucket<Key, Item, K> {
+impl<const K: usize, Key: PartialEq + GetDirection + Clone, Item: GetKey<Key>> Bucket<Key, Item, K> {
     pub fn new(key: Key) -> Self {
         Bucket {
             key,
@@ -59,7 +59,7 @@ impl<const K: usize, Key: PartialEq + HasBitAt + Clone, Item: GetKey<Key>> Bucke
 
         // Split node and distribute items
         debug!("Splitting bucket {}", bit_index);
-        node.split(bit_index, bucket_key.has_bit_at(bit_index));
+        node.split(bit_index, bucket_key.direction(bit_index));
 
         // Insert value by recursion
         self.put(value);
