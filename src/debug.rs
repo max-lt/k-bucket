@@ -1,13 +1,14 @@
 use std::fmt::Debug;
 
 use crate::Bucket;
+use crate::GetKey;
 use crate::Node;
 
 trait ToDebugString {
     fn to_debug_string(&self, pos: Vec<u8>, key_bits: usize) -> String;
 }
 
-impl<Item: Debug> ToDebugString for Node<Item> {
+impl<Key, Item: Debug + GetKey<Key>> ToDebugString for Node<Key, Item> {
     fn to_debug_string(&self, pos: Vec<u8>, key_bits: usize) -> String {
         let mut result = String::new();
 
@@ -48,7 +49,7 @@ impl<Item: Debug> ToDebugString for Node<Item> {
 }
 
 
-impl<Key: Debug, Item: Debug, const K: usize> Debug for Bucket<Key, Item, K> {
+impl<Key: Debug, Item: Debug + GetKey<Key>, const K: usize> Debug for Bucket<Key, Item, K> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut result = String::new();
         let key_bits = std::mem::size_of::<Key>() * 8;

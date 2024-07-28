@@ -1,4 +1,3 @@
-
 use log::debug;
 
 use crate::GetKey;
@@ -6,9 +5,9 @@ use crate::HasBitAt;
 use crate::Node;
 
 /// K: max items in a bucket
-pub struct Bucket<Key, Item, const K: usize> {
-    pub (crate) root: Box<Node<Item>>,
-    pub (crate) key: Key,
+pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
+    pub(crate) root: Box<Node<Key, Item>>,
+    pub(crate) key: Key,
 }
 
 /// Key: key struct
@@ -18,7 +17,7 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
     pub fn new(key: Key) -> Self {
         Bucket {
             key,
-            root: Box::new(Node::new(true)),
+            root: Box::new(Node::new_root()),
         }
     }
 
@@ -69,28 +68,7 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
 
         // Split node and distribute items
         debug!("Splitting bucket {}", bit_index);
-        let mut left_items = Vec::new();
-        let mut right_items = Vec::new();
-
-        // Distribute items
-        while let Some(item) = items.pop() {
-            match item.get_key().has_bit_at(bit_index) {
-                false => left_items.push(item),
-                true => right_items.push(item),
-            }
-        }
-
-        let is_right = self.key.has_bit_at(bit_index);
-        debug!(
-            "Splitting bucket {} left={} right={}",
-            bit_index, !is_right, is_right
-        );
-
-        node.items = None;
-        node.left = Some(Box::new(Node::new_with_items(left_items, !is_right)));
-        node.right = Some(Box::new(Node::new_with_items(right_items, is_right)));
-        node.can_split = false;
-        // End of split - TODO move to node impl
+        node.split(bit_index, self.key.has_bit_at(bit_index));
 
         // Insert value by recursion
         self.put(value);
@@ -113,10 +91,10 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
         // Check if item exists
         let items = node.items.as_ref().unwrap();
 
-       items.iter().find(|item| item.get_key() == *key)
-    }  
+        items.iter().find(|item| item.get_key() == *key)
+    }
 
-    pub fn del(&mut self,  key: &Key) {
+    pub fn del(&mut self, key: &Key) {
         let mut bit_index = 0;
         let mut node = self.root.as_mut();
 
@@ -143,6 +121,4 @@ impl<const K: usize, Key: PartialEq + HasBitAt, Item: GetKey<Key>> Bucket<Key, I
 }
 
 #[cfg(test)]
-mod tests {
-    
-}
+mod tests {}
