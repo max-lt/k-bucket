@@ -1,15 +1,16 @@
-use log::debug;
+use std::collections::BTreeMap;
 
-use crate::traits::Arbiter;
+use crate::Arbiter;
 use crate::GetDirection;
 use crate::GetDistance;
 use crate::GetKey;
-use crate::Node;
+use crate::LeadingZeros;
 
 /// K: max items in a bucket
 pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
-    pub(crate) root: Box<Node<Key, Item>>,
     pub(crate) key: Key,
+    pub(crate) buckets: BTreeMap<u8, Vec<Item>>,
+    key_bits: u8,
 }
 
 /// Key: key struct
@@ -17,31 +18,34 @@ pub struct Bucket<Key, Item: GetKey<Key>, const K: usize> {
 /// K: max items in a bucket
 impl<const K: usize, Key, Item> Bucket<Key, Item, K>
 where
-    Key: PartialEq + GetDirection + Clone + GetDistance + Ord,
-    Item: GetKey<Key> + Arbiter,
+    Key: PartialEq + GetDirection + Clone + GetDistance + LeadingZeros + Ord + std::fmt::Debug,
+    Item: GetKey<Key> + Arbiter + std::fmt::Debug,
 {
     pub fn new(key: Key) -> Self {
+        let key_bits = std::mem::size_of::<Key>() * 8;
+
+        assert!(K > 0, "K must be greater than 0");
+        assert!(key_bits > 0, "Key must have bits");
+        assert!(key_bits <= 256, "Key must have less than 256 bits");
+
+        let key_bits = key_bits as u8;
+
         Bucket {
             key,
-            root: Box::new(Node::new_root()),
+            buckets: BTreeMap::new(),
+            key_bits,
         }
     }
 
     pub fn put(&mut self, value: Item) {
-        let bucket_key = self.key.clone();
-
         let item_key = value.get_key();
 
-        let (node, bit_index) = Node::get_node_mut(&mut self.root, &item_key);
+        let bucket_index = self.bucket_index(&item_key);
+
+        let items = self.buckets.entry(bucket_index).or_insert(Vec::new());
 
         // Check if item already exists
-        let item_index = match &node.items {
-            Some(items) => items.iter().position(|item| item.get_key() == item_key),
-            // This should never happen as we navigated to the bucket node earlier
-            None => unreachable!("Node has no items"),
-        };
-
-        let items = node.items.as_mut().unwrap();
+        let item_index = items.iter().position(|item| item.get_key() == item_key);
 
         // Update item
         if let Some(item_index) = item_index {
@@ -66,73 +70,63 @@ where
             items.push(value);
             return;
         }
-
-        // The bucket is full
-        if !node.can_split {
-            // TODO: emit event with the m items list and the
-            // new item to let the user decide what to do,
-            // for now we just ignore the new item and return
-            return;
-        }
-
-        // Split node and distribute items
-        debug!("Splitting bucket {}", bit_index);
-        node.split(bit_index, bucket_key.direction(bit_index));
-
-        // Insert value by recursion
-        self.put(value);
     }
 
     pub fn get<'a>(&'a self, key: &Key) -> Option<&'a Item> {
-        let (node, _) = Node::get_node(&self.root, key);
+        let bucket_index = self.bucket_index(key);
+
+        let items = &self.buckets.get(&bucket_index)?;
 
         // Check if item exists
-        let items = node.items.as_ref().unwrap();
-
         items.iter().find(|item| item.get_key() == *key)
     }
 
     pub fn del(&mut self, key: &Key) -> Option<Item> {
-        let (node, _) = Node::get_node_mut(&mut self.root, key);
+        let bucket_index = self.bucket_index(key);
+
+        let items = &mut self.buckets.get_mut(&bucket_index)?;
 
         // Check if item exists
-        let items = node.items.as_mut().unwrap();
         let item_index = items.iter().position(|item| item.get_key() == *key)?;
 
         Some(items.remove(item_index))
     }
 
+    fn bucket_index(&self, key: &Key) -> u8 {
+        let bucket_key = self.key.clone();
+
+        let index = bucket_key.distance(key).leading_zeros() as u8;
+
+        if index > self.key_bits {
+            panic!("Index out of bounds");
+        }
+
+        if index < self.key_bits {
+            index
+        } else {
+            self.key_bits - 1
+        }
+    }
+
     /// Count the number of items in the bucket
     pub fn count(&self) -> usize {
-        self.root.count()
+        self.buckets.values().map(|items| items.len()).sum()
     }
 
     /// Get the n closest items to the given key
     pub fn closest(&self, key: &Key, n: usize) -> Vec<&Item> {
-        let mut result = Vec::new();
-
-        let mut nodes = vec![&self.root];
-
-        while !nodes.is_empty() {
-            let node = nodes.pop().unwrap();
-
-            match &node.items {
-                Some(items) => result.extend(items.iter()),
-                None => {
-                    nodes.push(&node.left.as_ref().unwrap());
-                    nodes.push(&node.right.as_ref().unwrap());
-                }
-            }
-        }
-
-        let mut result = result
-            .iter()
-            .map(|item| (key.distance(&item.get_key()), *item))
+        let mut result = self
+            .buckets
+            .values()
+            .flat_map(|items| items.iter())
+            .map(|item| (key.distance(&item.get_key()), item))
             .collect::<Vec<(Key, &Item)>>();
 
         result.sort_by(|(a, _), (b, _)| a.cmp(&b));
 
-        result.into_iter().take(n).map(|(_, item)| item).collect()
+        result.truncate(n);
+
+        result.into_iter().map(|(_, item)| item).collect()
     }
 }
 

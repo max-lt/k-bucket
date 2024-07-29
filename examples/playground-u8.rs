@@ -5,6 +5,7 @@ use k_bucket::Direction;
 use k_bucket::GetDirection;
 use k_bucket::GetDistance;
 use k_bucket::GetKey;
+use k_bucket::LeadingZeros;
 
 #[derive(PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 struct Key(u8);
@@ -33,28 +34,34 @@ impl GetDirection for Key {
 }
 
 struct Item {
-    value: u16,
+    value: u8,
 }
 
 impl std::fmt::Debug for Item {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:016b} ({:03})", self.value, self.value)
+        write!(f, "{:08b} ({:03})", self.value, self.value)
     }
 }
 
 impl GetKey<Key> for Item {
     fn get_key(&self) -> Key {
-        Key((self.value | 256) as u8)
+        Key(self.value)
         // Key((self.value >> 8) as u8)
     }
 }
 
 impl Arbiter for Item {
     fn arbitrate(&self, candidate: &Self) -> bool {
-        self.value < candidate.value // update if value is less
-        // self.value > candidate.value // update if value is greater
-        // true // always update
-        // false // never update
+        // self.value > candidate.value // update if candidate is less
+    self.value < candidate.value // update if candidate is greater
+    // true // always update
+    // false // never update
+    }
+}
+
+impl LeadingZeros for Key {
+    fn leading_zeros(&self) -> u8 {
+        self.0.leading_zeros() as u8
     }
 }
 
@@ -80,7 +87,7 @@ fn main() {
     let mut bucket: Bucket<Key, Item, 3> = Bucket::new(key);
     println!("- {:?}", bucket);
 
-    for i in 0..0xff {
+    for i in 0..=0xff {
         bucket.put(Item { value: i });
     }
 
@@ -98,5 +105,9 @@ fn main() {
     println!("has {} items", bucket.count());
 
     let closest_to = Key(0);
-    println!("Closest to {:?}: {:?}", closest_to, bucket.closest(&closest_to, 10));
+    println!(
+        "Closest to {:?}: {:?}",
+        closest_to,
+        bucket.closest(&closest_to, 10)
+    );
 }

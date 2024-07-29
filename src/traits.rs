@@ -9,6 +9,11 @@ pub trait GetDistance {
     fn distance(&self, right: &Self) -> Self;
 }
 
+/// [KEY] XOR distance between two keys of same type
+pub trait LeadingZeros {
+    fn leading_zeros(&self) -> u8;
+}
+
 /// [KEY] Returns direction for a given node index i
 pub trait GetDirection {
     fn direction(&self, i: usize) -> Direction;

@@ -1,9 +1,10 @@
 use k_bucket::Arbiter;
 use k_bucket::Bucket;
 use k_bucket::Direction;
-use k_bucket::GetDistance;
 use k_bucket::GetDirection;
+use k_bucket::GetDistance;
 use k_bucket::GetKey;
+use k_bucket::LeadingZeros;
 
 #[derive(Debug, PartialEq, PartialOrd, Eq, Ord, Clone, Copy)]
 struct Key([u8; 2]);
@@ -26,7 +27,7 @@ impl GetKey<Key> for Item {
 
 impl Arbiter for Item {
     fn arbitrate(&self, candidate: &Self) -> bool {
-      self.value > candidate.value
+        self.value > candidate.value
     }
 }
 
@@ -53,6 +54,12 @@ impl GetDistance for Key {
     }
 }
 
+impl LeadingZeros for Key {
+    fn leading_zeros(&self) -> u8 {
+        self.0.leading_zeros()
+    }
+}
+
 fn main() {
     if !std::env::var("RUST_LOG").is_ok() {
         std::env::set_var("RUST_LOG", "debug");
@@ -72,5 +79,9 @@ fn main() {
     println!("has {} items", bucket.count());
 
     let closest_to = Key([0xff, 0x00]);
-    println!("Closest to {:?}: {:?}", closest_to, bucket.closest(&closest_to, 10));
+    println!(
+        "Closest to {:?}: {:?}",
+        closest_to,
+        bucket.closest(&closest_to, 10)
+    );
 }

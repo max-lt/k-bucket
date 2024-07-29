@@ -1,6 +1,7 @@
 use crate::Direction;
 use crate::GetDirection;
 use crate::GetDistance;
+use crate::LeadingZeros;
 
 pub type Buf<const N: usize> = [u8; N];
 
@@ -33,6 +34,22 @@ impl<const N: usize> GetDirection for Buf<N> {
             0 => Direction::Left,
             _ => Direction::Right,
         }
+    }
+}
+
+impl<const N: usize> LeadingZeros for Buf<N> {
+    fn leading_zeros(&self) -> u8 {
+        let mut result = 0;
+
+        for i in 0..N {
+            if self[i] == 0 {
+                result += 8
+            } else {
+                return result + self[i].leading_zeros() as u8;
+            }
+        }
+
+        result
     }
 }
 
